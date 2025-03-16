@@ -7,3 +7,6 @@ torch>=2.0.0
 pytorch-argus==1.0.0
 deeplake==3.8.6
 ImageHash==4.3.1
+pytorch-lightning==2.0.4
+wandb
+einops
