@@ -10,3 +10,4 @@ ImageHash==4.3.1
 pytorch-lightning==2.0.4
 wandb
 einops
+mamba_ssm

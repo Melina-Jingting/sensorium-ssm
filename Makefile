@@ -28,7 +28,7 @@ run:
 		--ipc=host \
 		$(OPTIONS) \
 		$(GPUS_OPTION) \
-		-v "$(shell pwd):/workdir" \
+		-v $(shell pwd):/workdir \
 		--name=$(NAME) \
 		$(NAME) \
 		$(COMMAND)
