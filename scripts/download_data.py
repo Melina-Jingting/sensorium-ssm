@@ -8,6 +8,7 @@ import numpy as np
 import requests
 from tqdm import tqdm
 
+
 from src import constants
 
 
@@ -36,7 +37,8 @@ if __name__ == "__main__":
 
         print(f"Download '{url}' to '{zip_path}'")
         zip_path.unlink(missing_ok=True)
-        with requests.get(url, stream=True) as r:
+        with requests.get(url, stream=True, headers={'Accept-Encoding': None, 'Content-Encoding':'zip'}) as r:
+            print(r.headers)
             total_length = int(r.headers.get("Content-Length"))
             with tqdm.wrapattr(r.raw, "read", total=total_length, desc="") as raw:
                 with open(zip_path, 'wb') as output:

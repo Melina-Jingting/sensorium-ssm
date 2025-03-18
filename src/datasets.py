@@ -10,9 +10,9 @@ from torch.utils.data import Dataset
 
 from src.mixers import Mixer
 from src.utils import set_random_seed
-from src.inputs import InputsProcessor
+from src.inputs import InputsProcessor, StackInputsProcessor
 from src.indexes import IndexesGenerator
-from src.responses import ResponsesProcessor
+from src.responses import ResponsesProcessor, IdentityResponsesProcessor
 from src import constants
 
 
@@ -198,3 +198,55 @@ class ConcatMiceVideoDataset(Dataset):
         mouse_sample = self.mice_datasets[mouse_index][sample_index]
         mice_sample = self.construct_mice_sample(mouse_index, mouse_sample)
         return mice_sample
+
+def mouse_dataloader_collate_fn(batch, 
+                indexes_generator: IndexesGenerator = IndexesGenerator(16,2), 
+                inputs_processor: InputsProcessor = StackInputsProcessor(size=(64, 64), pad_fill_value=0), 
+                responses_processor: ResponsesProcessor = IdentityResponsesProcessor()):
+    """
+    Custom collation function to transform raw NumPy arrays into processed tensors.
+
+    Args:
+        batch (list of dicts): List of samples from the dataset.
+        indexes_generator (IndexesGenerator): Generates frame indexes.
+        inputs_processor (InputsProcessor): Preprocessing for input frames and behavior.
+        responses_processor (ResponsesProcessor): Preprocessing for response data.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Batched input and response tensors.
+
+    Note on changes from Romul's implementation:
+        Trial selection randomisation on the dataloader itself
+        Randomisation on the frames to be used doesnt depend on a seed that depends on the sample index.
+        No frame-wise augmentation. Romul uses CutMix (TODO)
+    """
+    inputs, responses = [], []
+
+    for sample in batch:
+        frames = np.array(sample["videos.npy"])
+        behavior = np.array(sample["behavior.npy"])
+        pupil_center = np.array(sample["pupil_center.npy"])
+        response = np.array(sample["responses.npy"])
+
+        # Select relevant frames using indexes_generator
+        frame_index = random.randrange(
+            indexes_generator.behind,
+            frames.shape[-1] - indexes_generator.ahead
+        )
+        frame_indexes = indexes_generator.make_indexes(frame_index)
+        frames, behavior, pupil_center, response = (
+            frames[..., frame_indexes],
+            behavior[..., frame_indexes],
+            pupil_center[..., frame_indexes],
+            response[..., frame_indexes]
+        )
+
+        # Convert to PyTorch tensors
+        input_tensor = inputs_processor(frames, behavior, pupil_center)
+        response_tensor = responses_processor(response)
+
+        inputs.append(input_tensor)
+        responses.append(response_tensor)
+
+    # Stack into a batch
+    return torch.stack(inputs), torch.stack(responses)

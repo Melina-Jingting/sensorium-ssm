@@ -1,12 +1,14 @@
 from pathlib import Path
 
-work_dir = Path("/workdir")
+work_dir = Path("")
 data_dir = work_dir / "data"
 sensorium_dir = data_dir / "sensorium_all_2023"
 
 configs_dir = work_dir / "configs"
 experiments_dir = data_dir / "experiments"
 predictions_dir = data_dir / "predictions"
+
+huggingface_dataset = "MelinaLaimon/sensorium_all_2023"
 
 new_mice = [
     "dynamic29515-10-12-Video-9b4f6a1a067fe51e15306b9628efea20",
@@ -15,7 +17,13 @@ new_mice = [
     "dynamic29712-5-9-Video-9b4f6a1a067fe51e15306b9628efea20",
     "dynamic29755-2-8-Video-9b4f6a1a067fe51e15306b9628efea20",
 ]
-new_num_neurons = [7863, 7908, 8202, 7939, 8122]
+new_num_neurons = [
+                    7863, 
+                    7908, 
+                    8202, 
+                    7939, 
+                    8122
+]
 old_mice = [
     "dynamic29156-11-10-Video-8744edeac3b4d1ce16b680916b5267ce",
     "dynamic29228-2-10-Video-8744edeac3b4d1ce16b680916b5267ce",
@@ -23,7 +31,13 @@ old_mice = [
     "dynamic29513-3-5-Video-8744edeac3b4d1ce16b680916b5267ce",
     "dynamic29514-2-9-Video-8744edeac3b4d1ce16b680916b5267ce",
 ]
-old_num_neurons = [7440, 7928, 8285, 7671, 7495]
+old_num_neurons = [
+                    7440, 
+                    7928, 
+                    8285, 
+                    7671, 
+                    7495
+]
 dataset2mice = {
     "new": new_mice,
     "old": old_mice,
