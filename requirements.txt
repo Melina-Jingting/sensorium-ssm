@@ -11,3 +11,6 @@ pytorch-lightning==2.0.4
 wandb
 einops
 mamba_ssm
+datasets
+causal-conv1d>=1.4.0
+flash-attn
