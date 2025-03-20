@@ -11,3 +11,4 @@ pytorch-lightning==2.0.4
 wandb
 einops
 mamba_ssm
+datasets
