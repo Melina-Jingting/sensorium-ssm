@@ -419,7 +419,7 @@ class DwiseNeuro(nn.Module):
         for readout_output in readout_outputs:
             self.readouts.append(
                 Readout(
-                    in_features=1024 if use_mamba else cortex_features[-1],
+                    in_features=core_features[-1] if use_mamba else cortex_features[-1],
                     out_features=readout_output,
                     groups=groups,
                     softplus_beta=softplus_beta,
