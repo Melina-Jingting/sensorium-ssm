@@ -14,3 +14,4 @@ mamba_ssm
 datasets
 causal-conv1d>=1.4.0
 flash-attn
+imagehash

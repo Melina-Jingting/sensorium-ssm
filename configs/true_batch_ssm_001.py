@@ -29,9 +29,9 @@ config = dict(
                                 2, 1),
             "spatial_kernel": 3,
             "temporal_kernel": 5,
-            "expansion_ratio": 7,
+            "expansion_ratio": 6,
             "se_reduce_ratio": 32,
-            "cortex_features": (512 * 2, 1024 * 2, 2048 * 2),
+            "cortex_features": (32, 4, 8), #d_state, d_conv, expand
             "groups": 2,
             "softplus_beta": 0.07,
             "drop_rate": 0.4,
@@ -63,5 +63,9 @@ config = dict(
     cutmix={
         "alpha": 1.0,
         "prob": 0.5,
+    },
+    distill={
+        "experiment": "true_batch_001",
+        "ratio": 0.36,
     },
 )

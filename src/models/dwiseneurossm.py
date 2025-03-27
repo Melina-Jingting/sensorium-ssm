@@ -138,7 +138,7 @@ class InvertedResidual3d(nn.Module):
         shortcut = x
         x = self.conv_pw(x)
         x = self.spat_covn_dw(x)
-        x = self.temp_covn_dw(x)
+        # x = self.temp_covn_dw(x)
         x = self.se(x)
         x = self.conv_pwl(x)
         x = self.drop_path(x) + self.interpolate_shortcut(shortcut)
@@ -265,7 +265,7 @@ class Cortex(nn.Module):
 
 
 
-class TemporalMambaBlock(nn.Module):
+class MambaCortex(nn.Module):
     def __init__(self, d_model, d_state=16, d_conv=4, expand=2):
         super().__init__()
         self.mamba = Mamba(
@@ -360,7 +360,7 @@ class DepthwiseCore(nn.Module):
         return x
 
 
-class DwiseNeuro(nn.Module):
+class DwiseNeuroSSM(nn.Module):
     def __init__(self,
                  readout_outputs: tuple[int, ...],
                  in_channels: int = 5,
@@ -370,12 +370,11 @@ class DwiseNeuro(nn.Module):
                  temporal_kernel: int = 5,
                  expansion_ratio: int = 6,
                  se_reduce_ratio: int = 32,
-                 cortex_features: tuple[int, ...] = (1024, 2048, 4096),
+                 cortex_features: tuple[int, ...] = (32, 4, 8),
                  groups: int = 2,
                  softplus_beta: float = 0.07,
                  drop_rate: float = 0.4,
                  drop_path_rate: float = 0.1,
-                 use_mamba: bool = True,
                  mamba_config: dict = None
                  ):
         super().__init__()
@@ -396,30 +395,15 @@ class DwiseNeuro(nn.Module):
 
         self.pool = nn.AdaptiveAvgPool3d((None, 1, 1))
 
-        # Choose temporal processing module.
-        if use_mamba:
-            # mamba_config can include keys: d_state, d_conv, expand
-            mamba_config = mamba_config or {}
-            self.temporal_module = TemporalMambaBlock(
-                d_model=core_features[-1],
-                **mamba_config
-            )
-        else:
-            # Fallback to the existing Cortex
-            self.temporal_module = Cortex(
-                in_features=core_features[-1],
-                features=(1024, 2048, 4096),
-                groups=2,
-                act_layer=act_layer,
-                bn_layer=nn.BatchNorm1d,
-                drop_path_rate=0.1,
-            )
-
+        self.temporal_module = MambaCortex(
+            *( (core_features[-1],) + cortex_features )
+        )
+        
         self.readouts = nn.ModuleList()
         for readout_output in readout_outputs:
             self.readouts.append(
                 Readout(
-                    in_features=1024 if use_mamba else cortex_features[-1],
+                    in_features=core_features[-1],
                     out_features=readout_output,
                     groups=groups,
                     softplus_beta=softplus_beta,
