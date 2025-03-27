@@ -403,7 +403,11 @@ class DwiseNeuroSSM(nn.Module):
         for readout_output in readout_outputs:
             self.readouts.append(
                 Readout(
+<<<<<<< HEAD
                     in_features=core_features[-1],
+=======
+                    in_features=core_features[-1] if use_mamba else cortex_features[-1],
+>>>>>>> b41a5bcf3febe9ae2eef8e2b7b297634793e16b2
                     out_features=readout_output,
                     groups=groups,
                     softplus_beta=softplus_beta,
