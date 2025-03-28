@@ -372,6 +372,7 @@ class DwiseNeuroSSM(nn.Module):
                  se_reduce_ratio: int = 32,
                  cortex_features: tuple[int, ...] = (1024, 2048, 4096),
                  ssm_features: dict = dict(d_model=1024, d_state=16, d_conv=4, expand=8),
+                 ssm_layers: int = 1, 
                  groups: int = 2,
                  softplus_beta: float = 0.07,
                  drop_rate: float = 0.4,
@@ -404,9 +405,7 @@ class DwiseNeuroSSM(nn.Module):
             drop_path_rate=drop_path_rate,
         )
 
-        self.ssm = MambaCortex(
-            **ssm_features
-        )
+        self.ssm = nn.Sequential(*[MambaCortex(**ssm_features) for _ in range(ssm_layers)])
         
         self.readouts = nn.ModuleList()
         for readout_output in readout_outputs:

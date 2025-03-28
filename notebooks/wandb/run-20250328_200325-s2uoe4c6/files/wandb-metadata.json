@@ -1,0 +1,42 @@
+{
+  "os": "Linux-6.8.0-52-generic-x86_64-with-glibc2.31",
+  "python": "CPython 3.10.12",
+  "startedAt": "2025-03-28T20:03:25.435881Z",
+  "program": "/workspace/sensorium-ssm/notebooks/train_pipeline.ipynb",
+  "codePath": "notebooks/train_pipeline.ipynb",
+  "git": {
+    "remote": "https://github.com/Melina-Jingting/sensorium-ssm.git",
+    "commit": "e7497056932ae59ee30f1cb9f4ffe00071400abb"
+  },
+  "email": "melinajingting@gmail.com",
+  "root": "/workspace/sensorium-ssm/notebooks",
+  "host": "01e89fd26f3d",
+  "executable": "/workspace/sensorium-ssm/.venv/bin/python",
+  "codePathLocal": "train_pipeline.ipynb",
+  "cpu_count": 64,
+  "cpu_count_logical": 128,
+  "gpu": "NVIDIA RTX 6000 Ada Generation",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "53687091200",
+      "used": "557326336"
+    }
+  },
+  "memory": {
+    "total": "540844744704"
+  },
+  "cpu": {
+    "count": 64,
+    "countLogical": 128
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA RTX 6000 Ada Generation",
+      "memoryTotal": "51527024640",
+      "cudaCores": 18176,
+      "architecture": "Ada"
+    }
+  ],
+  "cudaVersion": "12.4"
+}
