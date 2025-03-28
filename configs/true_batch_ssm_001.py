@@ -3,7 +3,7 @@ from src import constants
 
 
 image_size = (64, 64)
-batch_size = 8
+batch_size = 16
 base_lr = 3e-4
 frame_stack_size = 16
 config = dict(
@@ -22,8 +22,8 @@ config = dict(
             "readout_outputs": constants.num_neurons,
             "in_channels": 5,
             "core_features": (64, 64, 64, 64,
-                              128, 128, 128,
-                              256, 256),
+                              128, 128, 256,
+                              512, 1024),
             "spatial_strides": (2, 1, 1, 1,
                                 2, 1, 1,
                                 2, 1),
@@ -31,7 +31,13 @@ config = dict(
             "temporal_kernel": 5,
             "expansion_ratio": 6,
             "se_reduce_ratio": 32,
-            "cortex_features": (32, 4, 8), #d_state, d_conv, expand
+            "cortex_features": (512 * 2, 1024 * 2),
+            "ssm_features": {
+                "d_model": 2048,
+                "d_state":64,
+                "d_conv":4,
+                "expand":1
+                }, 
             "groups": 2,
             "softplus_beta": 0.07,
             "drop_rate": 0.4,
