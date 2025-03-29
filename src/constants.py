@@ -1,6 +1,6 @@
 from pathlib import Path
 
-work_dir = Path("")
+work_dir = Path("..")
 data_dir = work_dir / "data"
 sensorium_dir = data_dir / "sensorium_all_2023"
 
@@ -12,10 +12,10 @@ huggingface_dataset = "MelinaLaimon/sensorium_all_2023"
 
 new_mice = [
     "dynamic29515-10-12-Video-9b4f6a1a067fe51e15306b9628efea20",
-    "dynamic29623-4-9-Video-9b4f6a1a067fe51e15306b9628efea20",
-    "dynamic29647-19-8-Video-9b4f6a1a067fe51e15306b9628efea20",
-    "dynamic29712-5-9-Video-9b4f6a1a067fe51e15306b9628efea20",
-    "dynamic29755-2-8-Video-9b4f6a1a067fe51e15306b9628efea20",
+    # "dynamic29623-4-9-Video-9b4f6a1a067fe51e15306b9628efea20",
+    # "dynamic29647-19-8-Video-9b4f6a1a067fe51e15306b9628efea20",
+    # "dynamic29712-5-9-Video-9b4f6a1a067fe51e15306b9628efea20",
+    # "dynamic29755-2-8-Video-9b4f6a1a067fe51e15306b9628efea20",
 ]
 new_num_neurons = [
                     7863, 
@@ -25,11 +25,11 @@ new_num_neurons = [
                     8122
 ]
 old_mice = [
-    "dynamic29156-11-10-Video-8744edeac3b4d1ce16b680916b5267ce",
-    "dynamic29228-2-10-Video-8744edeac3b4d1ce16b680916b5267ce",
-    "dynamic29234-6-9-Video-8744edeac3b4d1ce16b680916b5267ce",
-    "dynamic29513-3-5-Video-8744edeac3b4d1ce16b680916b5267ce",
-    "dynamic29514-2-9-Video-8744edeac3b4d1ce16b680916b5267ce",
+    # "dynamic29156-11-10-Video-8744edeac3b4d1ce16b680916b5267ce",
+    # "dynamic29228-2-10-Video-8744edeac3b4d1ce16b680916b5267ce",
+    # "dynamic29234-6-9-Video-8744edeac3b4d1ce16b680916b5267ce",
+    # "dynamic29513-3-5-Video-8744edeac3b4d1ce16b680916b5267ce",
+    # "dynamic29514-2-9-Video-8744edeac3b4d1ce16b680916b5267ce",
 ]
 old_num_neurons = [
                     7440, 
