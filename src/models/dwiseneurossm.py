@@ -103,13 +103,13 @@ class InvertedResidual3d(nn.Module):
         )
 
         # Temporal depth-wise convolution
-        temporal_padding = temporal_kernel // 2
-        self.temp_covn_dw = nn.Sequential(
-            nn.Conv3d(mid_features, mid_features, (temporal_kernel, 1, 1),
-                      stride=(1, 1, 1), padding=(temporal_padding, 0, 0),
-                      groups=mid_features, bias=bias),
-            BatchNormAct(mid_features, bn_layer=bn_layer, act_layer=act_layer),
-        )
+        # temporal_padding = temporal_kernel // 2
+        # self.temp_covn_dw = nn.Sequential(
+        #     nn.Conv3d(mid_features, mid_features, (temporal_kernel, 1, 1),
+        #               stride=(1, 1, 1), padding=(temporal_padding, 0, 0),
+        #               groups=mid_features, bias=bias),
+        #     BatchNormAct(mid_features, bn_layer=bn_layer, act_layer=act_layer),
+        # )
 
         # Squeeze-and-excitation
         self.se = SqueezeExcite3d(mid_features, act_layer=act_layer, reduce_ratio=se_reduce_ratio)
@@ -364,18 +364,19 @@ class DwiseNeuroSSM(nn.Module):
     def __init__(self,
                  readout_outputs: tuple[int, ...],
                  in_channels: int = 5,
-                 core_features: tuple[int, ...] = (64, 64, 64, 64, 128, 128, 128, 256, 256),
+                 core_features: tuple[int, ...] = (64, 64, 64, 64, 128, 128, 128, 256, 1024),
                  spatial_strides: tuple[int, ...] = (2, 1, 1, 1, 2, 1, 1, 2, 1),
                  spatial_kernel: int = 3,
                  temporal_kernel: int = 5,
                  expansion_ratio: int = 6,
                  se_reduce_ratio: int = 32,
-                 cortex_features: tuple[int, ...] = (32, 4, 8),
+                 cortex_features: tuple[int, ...] = (1024, 2048, 4096),
+                 ssm_features: dict = dict(d_model=1024, d_state=16, d_conv=4, expand=8),
+                 ssm_layers: int = 1, 
                  groups: int = 2,
                  softplus_beta: float = 0.07,
                  drop_rate: float = 0.4,
-                 drop_path_rate: float = 0.1,
-                 mamba_config: dict = None
+                 drop_path_rate: float = 0.1
                  ):
         super().__init__()
         act_layer = functools.partial(nn.SiLU, inplace=True)
@@ -394,20 +395,23 @@ class DwiseNeuroSSM(nn.Module):
         )
 
         self.pool = nn.AdaptiveAvgPool3d((None, 1, 1))
-
-        self.temporal_module = MambaCortex(
-            *( (core_features[-1],) + cortex_features )
+        
+        self.cortex = Cortex(
+            in_features=core_features[-1],
+            features=cortex_features,
+            groups=groups,
+            act_layer=act_layer,
+            bn_layer=nn.BatchNorm1d,
+            drop_path_rate=drop_path_rate,
         )
+
+        self.ssm = nn.Sequential(*[MambaCortex(**ssm_features) for _ in range(ssm_layers)])
         
         self.readouts = nn.ModuleList()
         for readout_output in readout_outputs:
             self.readouts.append(
                 Readout(
-<<<<<<< HEAD
-                    in_features=core_features[-1],
-=======
-                    in_features=core_features[-1] if use_mamba else cortex_features[-1],
->>>>>>> b41a5bcf3febe9ae2eef8e2b7b297634793e16b2
+                    in_features=cortex_features[-1],
                     out_features=readout_output,
                     groups=groups,
                     softplus_beta=softplus_beta,
@@ -419,7 +423,8 @@ class DwiseNeuroSSM(nn.Module):
         # Input shape: (batch, channel, time, height, width), e.g. (32, 5, 16, 64, 64)
         x = self.core(x)  # (32, 256, 16, 8, 8)
         x = self.pool(x).squeeze(-1).squeeze(-1)  # (32, 256, 16)
-        x = self.temporal_module(x)  # (32, 4096, 16)
+        x = self.cortex(x)  # (32, 4096, 16)
+        x = self.ssm(x)
         if index is None:
             return [readout(x) for readout in self.readouts]
         else:
