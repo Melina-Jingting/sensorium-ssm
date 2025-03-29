@@ -5,75 +5,62 @@ import argparse
 from pathlib import Path
 from pprint import pprint
 from importlib.machinery import SourceFileLoader
+import importlib
 
 import torch
+import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
 
-from argus import load_model
-from argus.callbacks import (
-    LoggingToFile,
-    LoggingToCSV,
-    CosineAnnealingLR,
-    Checkpoint,
-    LambdaLR,
-)
+from argus.utils import deep_to
+import wandb
+import numpy as np
 
 from src.datasets import TrainMouseVideoDataset, ValMouseVideoDataset, ConcatMiceVideoDataset
-from src.utils import get_lr, init_weights, get_best_model_path
+from src.utils import get_lr, init_weights, get_best_model_path, save_model_to_wandb
 from src.responses import get_responses_processor
-from src.ema import ModelEma, EmaCheckpoint
 from src.inputs import get_inputs_processor
 from src.metrics import CorrelationMetric
 from src.indexes import IndexesGenerator
-from src.argus_models import MouseModel
+from src.models.dwiseneurossm import DwiseNeuroSSM
 from src.data import get_mouse_data
 from src.mixers import CutMix
 from src import constants
+from src.losses import MicePoissonLoss
+
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--experiment", required=True, type=str)
-    parser.add_argument("-f", "--folds", default="all", type=str)
+    parser.add_argument("-f", "--folds", default="0", type=str)
     return parser.parse_args()
-
 
 def train_mouse(config: dict, save_dir: Path, train_splits: list[str], val_splits: list[str]):
     config = copy.deepcopy(config)
-    argus_params = config["argus_params"]
+    
+    # Split module and class name
+    module_name, class_name = config["model_class"].rsplit(".", 1)
 
-    model = MouseModel(argus_params)
-
-    if config["init_weights"]:
-        print("Weight initialization")
-        init_weights(model.nn_module)
-
-    if config["ema_decay"]:
-        print("EMA decay:", config["ema_decay"])
-        model.model_ema = ModelEma(model.nn_module, decay=config["ema_decay"])
-        checkpoint_class = EmaCheckpoint
-    else:
-        checkpoint_class = Checkpoint
-
-    if "distill" in config:
-        distill_params = config["distill"]
-        distill_experiment_dir = constants.experiments_dir / distill_params["experiment"] / val_splits[0]
-        distill_model_path = get_best_model_path(distill_experiment_dir)
-        distill_model = load_model(distill_model_path, device=argus_params["device"])
-        distill_model.eval()
-        model.distill_model = distill_model.nn_module
-        model.distill_ratio = distill_params["ratio"]
-        print(f"Distillation model {str(distill_model_path)}, ratio {model.distill_ratio}")
-
-    indexes_generator = IndexesGenerator(**argus_params["frame_stack"])
-    inputs_processor = get_inputs_processor(*argus_params["inputs_processor"])
-    responses_processor = get_responses_processor(*argus_params["responses_processor"])
-
+    # Dynamically import module and get model class
+    model_module = importlib.import_module(module_name)
+    model_class = getattr(model_module, class_name)
+    
+    model = model_class(**config["nn_module"][1])
+    model.to(config["device"])
+    
+    
+    # Dataset processing
+    indexes_generator = IndexesGenerator(**config["frame_stack"])
+    inputs_processor = get_inputs_processor(*config["inputs_processor"])
+    responses_processor = get_responses_processor(*config["responses_processor"])
     cutmix = CutMix(**config["cutmix"])
+
+    # Build training dataset
     train_datasets = []
     mouse_epoch_size = config["train_epoch_size"] // constants.num_mice
     for mouse in constants.mice:
-        train_datasets += [
+        train_datasets.append(
             TrainMouseVideoDataset(
                 mouse_data=get_mouse_data(mouse=mouse, splits=train_splits),
                 indexes_generator=indexes_generator,
@@ -82,67 +69,115 @@ def train_mouse(config: dict, save_dir: Path, train_splits: list[str], val_split
                 epoch_size=mouse_epoch_size,
                 mixer=cutmix,
             )
-        ]
+        )
     train_dataset = ConcatMiceVideoDataset(train_datasets)
-    print("Train dataset len:", len(train_dataset))
+
+    # Build validation dataset
     val_datasets = []
     for mouse in constants.mice:
-        val_datasets += [
+        val_datasets.append(
             ValMouseVideoDataset(
                 mouse_data=get_mouse_data(mouse=mouse, splits=val_splits),
                 indexes_generator=indexes_generator,
                 inputs_processor=inputs_processor,
                 responses_processor=responses_processor,
             )
-        ]
+        )
     val_dataset = ConcatMiceVideoDataset(val_datasets)
-    print("Val dataset len:", len(val_dataset))
 
+    # Create data loaders
     train_loader = DataLoader(
         train_dataset,
         batch_size=config["batch_size"],
-        num_workers=config["num_dataloader_workers"],
         shuffle=True,
+        num_workers=config["num_dataloader_workers"],
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=config["batch_size"] // argus_params["iter_size"],
-        num_workers=config["num_dataloader_workers"],
+        batch_size=config["batch_size"] // config["iter_size"],
         shuffle=False,
+        num_workers=config["num_dataloader_workers"],
     )
+    
+    # Optimizer, scheduler, and loss
+    optimizer = optim.Adam(model.parameters(), lr=config["base_lr"])
+    total_iterations = len(train_loader) * sum(config["num_epochs"])
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=total_iterations, eta_min=get_lr(config["min_base_lr"], config["batch_size"])
+    )
+    loss_fn = MicePoissonLoss()  # Replace with the correct loss function if different
+    correlation_metric = CorrelationMetric()
+
+    # Training loop
+    num_total_epochs = sum(config["num_epochs"])
+    global_step = 0
+    iter_size = config.get("iter_size", 1)  # Gradient accumulation
+    grad_scaler = torch.amp.GradScaler("cuda",enabled=True)  # Mixed precision
+    
+    wandb.init(project="sensorium_ssm", config=config)
 
     for num_epochs, stage in zip(config["num_epochs"], config["stages"]):
-        callbacks = [
-            LoggingToFile(save_dir / "log.txt", append=True),
-            LoggingToCSV(save_dir / "log.csv", append=True),
-        ]
-
+        
         num_iterations = (len(train_dataset) // config["batch_size"]) * num_epochs
         if stage == "warmup":
-            callbacks += [
-                LambdaLR(lambda x: x / num_iterations,
-                         step_on_iteration=True),
-            ]
+            scheduler = LambdaLR(optimizer, lr_lambda=lambda x: x / num_iterations)
         elif stage == "train":
-            checkpoint_format = "model-{epoch:03d}-{val_corr:.6f}.pth"
-            callbacks += [
-                checkpoint_class(save_dir, file_format=checkpoint_format, max_saves=1),
-                CosineAnnealingLR(
-                    T_max=num_iterations,
-                    eta_min=get_lr(config["min_base_lr"], config["batch_size"]),
-                    step_on_iteration=True,
-                ),
-            ]
+            scheduler = CosineAnnealingLR(optimizer, T_max=num_iterations, eta_min=get_lr(config["min_base_lr"], config["batch_size"]))
 
-        metrics = [
-            CorrelationMetric(),
-        ]
+        for epoch in range(num_epochs):
+            model.train()
+            epoch_loss = 0.0
+            optimizer.zero_grad()
 
-        model.fit(train_loader,
-                  val_loader=val_loader,
-                  num_epochs=num_epochs,
-                  callbacks=callbacks,
-                  metrics=metrics)
+            for i, batch in enumerate(train_loader):
+                inputs, target = deep_to(batch, device=config["device"], non_blocking=True)
+
+                with torch.amp.autocast('cuda', enabled=True):                
+                    prediction = model(inputs)
+                    loss = loss_fn(prediction, target) / iter_size  # Scale loss for accumulation
+
+                grad_scaler.scale(loss).backward()
+                epoch_loss += loss.item() * iter_size
+
+                if (i + 1) % iter_size == 0:
+                    grad_scaler.step(optimizer)
+                    grad_scaler.update()
+                    optimizer.zero_grad()
+                    scheduler.step()
+                    global_step += 1
+                    wandb.log({"train_loss": loss.item() * iter_size, "lr": optimizer.param_groups[0]["lr"], "epoch": epoch + 1, "global_step": global_step})
+
+            # Validation step
+            model.eval()
+            val_loss = 0.0
+            correlation_metric.reset()
+            
+            with torch.no_grad():
+                for batch in val_loader:
+                    inputs, target = batch
+                    inputs, target = deep_to(batch, config["device"], non_blocking=True)
+                    prediction = model(inputs)
+                    loss = loss_fn(prediction, target)
+                    val_loss += loss.item()
+                    correlation_metric.update({"prediction": prediction, "target": target})
+            
+            val_loss /= len(val_loader)
+            val_corr = correlation_metric.compute()
+            avg_corr = np.mean(list(val_corr.values()))  # Get overall mean correlation
+            
+            print(f"Epoch {epoch+1}/{num_total_epochs} - Train Loss: {epoch_loss/len(train_loader):.4f} - Val Loss: {val_loss:.4f} - Corr: {avg_corr:.4f}")
+            epoch_metrics = {
+                "epoch_train_loss": epoch_loss / len(train_loader),
+                "epoch_val_loss": val_loss,
+                "epoch_correlation": avg_corr,
+                "epoch": epoch + 1
+            }
+            for mouse_index, mouse_corr in val_corr.items():
+                epoch_metrics[f"val_corr_mouse_{mouse_index}"] = mouse_corr
+            
+            wandb.log(epoch_metrics)
+            save_model_to_wandb(model, epoch, save_dir)
+
 
 
 if __name__ == "__main__":

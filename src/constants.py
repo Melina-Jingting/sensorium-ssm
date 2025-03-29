@@ -1,6 +1,6 @@
 from pathlib import Path
 
-work_dir = Path("..")
+work_dir = Path("")
 data_dir = work_dir / "data"
 sensorium_dir = data_dir / "sensorium_all_2023"
 
