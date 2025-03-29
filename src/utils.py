@@ -69,3 +69,22 @@ def get_length_without_nan(array: np.ndarray):
         return nan_indexes[0]
     else:
         return array.shape[0]
+
+def save_model_to_wandb(model, epoch, save_dir):
+    artifact = wandb.Artifact("trained_model", type="model")
+    model_path = os.path.join(save_dir, f"model_epoch_{epoch+1:03d}.pth")
+    
+    torch.save(model.state_dict(), model_path)  # Save locally
+    artifact.add_file(model_path)  # Attach to artifact
+    
+    wandb.log_artifact(artifact)  # Log artifact to wandb
+    
+def count_trainable_layers(model):
+    trainable_layers = set()
+    
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            layer_name = ".".join(name.split(".")[:-1])  # Get layer name without weight/bias
+            trainable_layers.add(layer_name)
+
+    return len(trainable_layers)
