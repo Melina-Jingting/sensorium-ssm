@@ -20,10 +20,11 @@ def create_videos_phashes(mouse: str) -> np.ndarray:
 def get_folds_tiers(mouse: str, num_folds: int):
     tiers = np.load(str(constants.sensorium_dir / mouse / "meta" / "trials" / "tiers.npy"))
     phashes = create_videos_phashes(mouse)
-    if mouse in constants.new_mice:
-        trial_ids = np.argwhere((tiers == "train") | (tiers == "oracle")).ravel()
-    else:
-        trial_ids = np.argwhere(tiers != "none").ravel()
+    # if mouse in constants.new_mice:
+    #     trial_ids = np.argwhere((tiers == "train") | (tiers == "oracle")).ravel()
+    # else:
+    #     trial_ids = np.argwhere(tiers != "none").ravel()
+    trial_ids = np.argwhere((tiers == "train") | (tiers == "oracle")).ravel()
     for trial_id in trial_ids:
         fold = int(phashes[trial_id]) % num_folds  # group k-fold by video hash
         tiers[trial_id] = f"fold_{fold}"
@@ -71,3 +72,5 @@ def get_mouse_data(mouse: str, splits: list[str]) -> dict:
             mouse_data["trials"].append(trial_data)
 
     return mouse_data
+
+
