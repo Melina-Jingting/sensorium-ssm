@@ -68,3 +68,5 @@ def get_mouse_data(mouse: str, splits: list[str]) -> dict:
             mouse_data["trials"].append(trial_data)
 
     return mouse_data
+
+
