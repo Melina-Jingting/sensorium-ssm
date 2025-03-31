@@ -40,7 +40,7 @@ def train_mouse(config: dict, save_dir: Path, train_splits: list[str], val_split
     config = copy.deepcopy(config)
     
     # Split module and class name
-    module_name, class_name = config["model_class"].rsplit(".", 1)
+    module_name, class_name = config["nn_module"][0].rsplit(".", 1)
 
     # Dynamically import module and get model class
     model_module = importlib.import_module(module_name)

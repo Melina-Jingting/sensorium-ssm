@@ -8,6 +8,7 @@ import numpy as np
 from torch import nn
 import wandb
 import os
+import torch
 
 
 def set_random_seed(index: int):
@@ -72,6 +73,9 @@ def get_length_without_nan(array: np.ndarray):
         return array.shape[0]
 
 def save_model_to_wandb(model, epoch, save_dir):
+    if not save_dir.exists():
+        save_dir.mkdir(parents=True, exist_ok=True)
+        
     artifact = wandb.Artifact("trained_model", type="model")
     model_path = os.path.join(save_dir, f"model_epoch_{epoch+1:03d}.pth")
     
@@ -79,6 +83,11 @@ def save_model_to_wandb(model, epoch, save_dir):
     artifact.add_file(model_path)  # Attach to artifact
     
     wandb.log_artifact(artifact)  # Log artifact to wandb
+    
+    old_model_path = os.path.join(save_dir, f"model_epoch_{epoch:03d}.pth")
+    if os.path.exists(old_model_path):
+        os.remove(old_model_path)
+    
     
 def count_trainable_layers(model):
     trainable_layers = set()
