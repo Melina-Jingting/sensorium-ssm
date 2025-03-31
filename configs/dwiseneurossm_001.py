@@ -73,4 +73,5 @@ config = dict(
         "experiment": "true_batch_001",
         "ratio": 0.36,
     },
+    max_grad_norm=1
 )

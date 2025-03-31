@@ -115,7 +115,8 @@ def train_mouse(config: dict, save_dir: Path, train_splits: list[str], val_split
     grad_scaler = torch.amp.GradScaler("cuda",enabled=True)  # Mixed precision
     
     wandb.init(project="sensorium_ssm", config=config)
-
+    wandb.watch(model, log="all", log_freq=200)
+    
     for num_epochs, stage in zip(config["num_epochs"], config["stages"]):
         
         num_iterations = (len(train_dataset) // config["batch_size"]) * num_epochs
@@ -140,6 +141,10 @@ def train_mouse(config: dict, save_dir: Path, train_splits: list[str], val_split
                 epoch_loss += loss.item() * iter_size
 
                 if (i + 1) % iter_size == 0:
+                    if "max_grad_norm" in config:
+                        grad_scaler.unscale_(optimizer)  # Unscale before clipping
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), config["max_grad_norm"])
+                    
                     grad_scaler.step(optimizer)
                     grad_scaler.update()
                     optimizer.zero_grad()
