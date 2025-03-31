@@ -34,10 +34,18 @@ class StackInputsProcessor(InputsProcessor):
 
         tensor_frames = torch.from_numpy(input_array)
         return tensor_frames
+    
+class IdentityInputsProcessor(InputsProcessor):
+    def __call__(self, frames: np.ndarray, behavior: np.ndarray, pupil_center: np.ndarray) -> torch.Tensor:
+        tensor_frames = torch.from_numpy(frames.astype(np.float32)).permute(2, 0, 1).unsqueeze(0) # (1, T, H, W)
+        tensor_behavior = torch.from_numpy(behavior.astype(np.float32)).unsqueeze(0)       # (1, 2, T)
+        tensor_pupil_center = torch.from_numpy(pupil_center.astype(np.float32)).unsqueeze(0) # (1, 2, T)
+        return tensor_frames, tensor_behavior, tensor_pupil_center
 
 
 _INPUTS_PROCESSOR_REGISTRY: dict[str, Type[InputsProcessor]] = dict(
     stack_inputs=StackInputsProcessor,
+    identity_inputs=IdentityInputsProcessor
 )
 
 

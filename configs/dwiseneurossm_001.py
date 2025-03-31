@@ -37,7 +37,7 @@ config = dict(
             "d_conv":4,
             "expand":2
             }, 
-        "ssm_layers":2,
+        "ssm_layers":1,
         "groups": 2,
         "softplus_beta": 0.07,
         "drop_rate": 0.4,
